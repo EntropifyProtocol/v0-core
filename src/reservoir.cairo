@@ -1,9 +1,9 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-pub trait IReservoir<TContractState> {
-    fn put(ref self: TContractState, randomness: felt252);
-    fn get(ref self: TContractState) -> felt252;
+pub trait IEntropyReservoir<TContractState> {
+    fn put(ref self: TContractState, entropy: u256);
+    fn get(ref self: TContractState) -> u256;
 
     fn get_count(self: @TContractState) -> u64;
 
@@ -12,7 +12,7 @@ pub trait IReservoir<TContractState> {
 }
 
 #[starknet::contract]
-mod Reservoir {
+mod EntropyReservoir {
     use starknet::storage::{
         Vec,
         VecTrait,
@@ -28,7 +28,7 @@ mod Reservoir {
         owner: ContractAddress,
         collector: ContractAddress,
         provider: ContractAddress,
-        reservoir: Vec<felt252>,
+        reservoir: Vec<u256>,
     }
 
     #[constructor]
@@ -37,15 +37,15 @@ mod Reservoir {
     }
 
     #[abi(embed_v0)]
-    impl ReservoirImpl of super::IReservoir<ContractState> {
-        fn put(ref self: ContractState, randomness: felt252) {
+    impl EntropyReservoirImpl of super::IEntropyReservoir<ContractState> {
+        fn put(ref self: ContractState, entropy: u256) {
             self.only_collector();
-            self.reservoir.push(randomness);
+            self.reservoir.append().write(entropy);
         }
 
-        fn get(ref self: ContractState) -> felt252 {
+        fn get(ref self: ContractState) -> u256 {
             self.only_provider();
-            self.reservoir.pop().unwrap()
+            1
         }
 
         fn get_count(self: @ContractState) -> u64 {

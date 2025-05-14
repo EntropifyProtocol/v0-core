@@ -1,14 +1,8 @@
 use starknet::ContractAddress;
 
-#[derive(Copy, Drop, Serde)]
-pub struct Randomness {
-    pub value: felt252,
-    pub proof: felt252,
-}
-
 #[starknet::interface]
 pub trait ICollector<TContractState> {
-    fn receive(ref self: TContractState, randomness: Randomness);
+    fn receive(ref self: TContractState, entropy: u256, proof: u256);
 
     fn set_reservoir(ref self: TContractState, new_reservoir: ContractAddress);
     fn set_contributors_hub(ref self: TContractState, new_contributors_hub: ContractAddress);
@@ -18,16 +12,14 @@ pub trait ICollector<TContractState> {
 mod Collector {
     use starknet::storage::{StoragePointerWriteAccess, StoragePointerReadAccess};
     use core_v0::contributor::{IContributorHubDispatcher, IContributorHubDispatcherTrait};
-    use core_v0::reservoir::{IReservoirDispatcher, IReservoirDispatcherTrait, IReservoirSafeDispatcher};
+    use core_v0::reservoir::{IEntropyReservoirDispatcher, IEntropyReservoirDispatcherTrait};
     use starknet::{ContractAddress, get_caller_address};
-
-    use super::{Randomness};
 
     #[storage]
     struct Storage {
         owner: ContractAddress,
         contributors: IContributorHubDispatcher,
-        reservoir: IReservoirDispatcher,
+        reservoir: IEntropyReservoirDispatcher,
     }
 
     #[constructor]
@@ -38,20 +30,20 @@ mod Collector {
 
     #[abi(embed_v0)]
     impl CollectorImpl of super::ICollector<ContractState> {
-        fn receive(ref self: ContractState, randomness: Randomness) {
+        fn receive(ref self: ContractState, entropy: u256, proof: u256) {
             // check if caller is a contributor
             self.only_contributor();
 
             // check if randomness is valid
-            assert(self.verify_randomness(randomness), 'INVALID_RANDOMNESS');
+            assert(self.verify_randomness(entropy, proof), 'INVALID_RANDOMNESS');
 
             // add randomness to the Reservoir
-            self.get_reservoir().put(randomness.value);
+            self.get_reservoir().put(entropy);
         }
 
         fn set_reservoir(ref self: ContractState, new_reservoir: ContractAddress) {
             self.only_owner();
-            self.reservoir.write(IReservoirDispatcher{contract_address: new_reservoir});
+            self.reservoir.write(IEntropyReservoirDispatcher{contract_address: new_reservoir});
         }
 
         fn set_contributors_hub(ref self: ContractState, new_contributors_hub: ContractAddress) {
@@ -79,11 +71,11 @@ mod Collector {
             self.contributors.read()
         }
 
-        fn get_reservoir(self: @ContractState) -> IReservoirDispatcher {
+        fn get_reservoir(self: @ContractState) -> IEntropyReservoirDispatcher {
             self.reservoir.read()
         }
 
-        fn verify_randomness(self: @ContractState, randomness: Randomness) -> bool {
+        fn verify_randomness(self: @ContractState, entropy: u256, proof: u256) -> bool {
             // TODO: implement verification
             true
         }
