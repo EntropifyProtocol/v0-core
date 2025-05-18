@@ -10,16 +10,29 @@ pub trait IRandomProvider<TContractState> {
 
 #[starknet::contract]
 mod RandomProvider {
+    use starknet::event::EventEmitter;
     use starknet::storage::{StoragePointerWriteAccess, StoragePointerReadAccess};
-    use core_v0::reservoir::{IEntropyReservoirDispatcher, IEntropyReservoirDispatcherTrait};
+    use core_v0::reservoir::{IEntropyReservoirSafeDispatcher, IEntropyReservoirSafeDispatcherTrait};
     use core_v0::fee_collector::{IFeeCollectorDispatcher, IFeeCollectorDispatcherTrait};
     use starknet::{ContractAddress, get_caller_address};
 
     #[storage]
     struct Storage {
         owner: ContractAddress,
-        reservoir: IEntropyReservoirDispatcher,
+        reservoir: IEntropyReservoirSafeDispatcher,
         fee_collector: IFeeCollectorDispatcher,
+    }
+
+    // Events must derive the `starknet::Event` trait
+    #[derive(Copy, Drop, Debug, PartialEq, starknet::Event)]
+    pub struct Rand {
+        pub value: u256,
+    }
+
+    #[event]
+    #[derive(Copy, Drop, Debug, PartialEq, starknet::Event)]
+    pub enum Event {
+        Rand: Rand,
     }
 
     #[constructor]
@@ -31,12 +44,20 @@ mod RandomProvider {
     impl RandomProviderImpl of super::IRandomProvider<ContractState> {
         fn rand(ref self: ContractState, amount: u256) -> u256 {
             self.get_fee_collector().collect(get_caller_address(), amount);
-            self.get_reservoir().get()
+
+            let entropy = match self.get_reservoir().get() {
+                Result::Ok(result) => result,
+                Result::Err(_) => core::panic_with_felt252('not enough entropy'),
+            };
+
+            self.emit(Event::Rand(Rand { value: entropy }));
+
+            entropy
         }
 
         fn set_reservoir(ref self: ContractState, new_reservoir: ContractAddress) {
             self.only_owner();
-            self.reservoir.write(IEntropyReservoirDispatcher{contract_address: new_reservoir});
+            self.reservoir.write(IEntropyReservoirSafeDispatcher{contract_address: new_reservoir});
         }
 
         fn set_fee_collector(ref self: ContractState, new_fee_collector: ContractAddress) {
@@ -52,7 +73,7 @@ mod RandomProvider {
             assert(caller == self.owner.read(), 'ONLY_OWNER');
         }
 
-        fn get_reservoir(self: @ContractState) -> IEntropyReservoirDispatcher {
+        fn get_reservoir(self: @ContractState) -> IEntropyReservoirSafeDispatcher {
             self.reservoir.read()
         }
 

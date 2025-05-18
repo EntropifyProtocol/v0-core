@@ -14,9 +14,9 @@ pub trait IEntropyReservoir<TContractState> {
 #[starknet::contract]
 mod EntropyReservoir {
     use starknet::storage::{
-        Vec,
-        VecTrait,
-        MutableVecTrait,
+        Map,
+        StorageMapReadAccess,
+        StorageMapWriteAccess,
         StoragePointerWriteAccess,
         StoragePointerReadAccess,
     };
@@ -28,7 +28,8 @@ mod EntropyReservoir {
         owner: ContractAddress,
         collector: ContractAddress,
         provider: ContractAddress,
-        reservoir: Vec<u256>,
+        reservoir: Map<u64, u256>,
+        next_index: u64,
     }
 
     #[constructor]
@@ -40,16 +41,29 @@ mod EntropyReservoir {
     impl EntropyReservoirImpl of super::IEntropyReservoir<ContractState> {
         fn put(ref self: ContractState, entropy: u256) {
             self.only_collector();
-            self.reservoir.append().write(entropy);
+
+            let next_index = self.next_index.read();
+            self.reservoir.write(next_index, entropy);
+            self.next_index.write(next_index + 1);
         }
 
         fn get(ref self: ContractState) -> u256 {
             self.only_provider();
-            1
+
+            let next_index = self.next_index.read();
+            assert(next_index > 0, 'EMPTY_RESERVOIR');
+
+            let last_saved_index = next_index - 1;
+            let entropy = self.reservoir.read(last_saved_index);
+
+            self.reservoir.write(last_saved_index, 0);
+            self.next_index.write(last_saved_index);
+
+            entropy
         }
 
         fn get_count(self: @ContractState) -> u64 {
-            self.reservoir.len()
+            self.next_index.read()
         }
 
         fn set_collector(ref self: ContractState, new_collector: ContractAddress) {

@@ -1,47 +1,52 @@
 use starknet::ContractAddress;
 
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, test_address};
 
-use core_v0::IHelloStarknetSafeDispatcher;
-use core_v0::IHelloStarknetSafeDispatcherTrait;
-use core_v0::IHelloStarknetDispatcher;
-use core_v0::IHelloStarknetDispatcherTrait;
+use core_v0::reservoir::{IEntropyReservoirDispatcher, IEntropyReservoirDispatcherTrait};
+use core_v0::reservoir::{IEntropyReservoirSafeDispatcher, IEntropyReservoirSafeDispatcherTrait};
 
-fn deploy_contract(name: ByteArray) -> ContractAddress {
+fn deploy_contract(name: ByteArray, owner: ContractAddress) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
-    let (contract_address, _) = contract.deploy(@ArrayTrait::new()).unwrap();
+    let mut constructor_args = ArrayTrait::new();
+    constructor_args.append(owner.into());
+    
+    let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
     contract_address
 }
 
 #[test]
 fn test_increase_balance() {
-    let contract_address = deploy_contract("HelloStarknet");
+    let contract_address = deploy_contract("EntropyReservoir", test_address());
 
-    let dispatcher = IHelloStarknetDispatcher { contract_address };
+    let dispatcher = IEntropyReservoirDispatcher { contract_address };
 
-    let balance_before = dispatcher.get_balance();
-    assert(balance_before == 0, 'Invalid balance');
+    let count_before = dispatcher.get_count();
+    assert(count_before == 0, 'Invalid balance');
 
-    dispatcher.increase_balance(42);
+    dispatcher.put(42);
 
-    let balance_after = dispatcher.get_balance();
-    assert(balance_after == 42, 'Invalid balance');
+    let count_after = dispatcher.get_count();
+    assert(count_after == 1, 'Invalid balance');
+
+    let entropy = dispatcher.get();
+    assert(entropy == 42, 'Invalid entropy');
 }
 
 #[test]
 #[feature("safe_dispatcher")]
 fn test_cannot_increase_balance_with_zero_value() {
-    let contract_address = deploy_contract("HelloStarknet");
+    let contract_address = deploy_contract("EntropyReservoir", test_address());
 
-    let safe_dispatcher = IHelloStarknetSafeDispatcher { contract_address };
+    let safe_dispatcher = IEntropyReservoirSafeDispatcher { contract_address };
 
-    let balance_before = safe_dispatcher.get_balance().unwrap();
-    assert(balance_before == 0, 'Invalid balance');
+    let count_before = safe_dispatcher.get_count().unwrap();
+    assert(count_before == 0, 'Invalid count');
 
-    match safe_dispatcher.increase_balance(0) {
-        Result::Ok(_) => core::panic_with_felt252('Should have panicked'),
-        Result::Err(panic_data) => {
-            assert(*panic_data.at(0) == 'Amount cannot be 0', *panic_data.at(0));
-        }
-    };
+   safe_dispatcher.put(42).unwrap();
+
+   let count_after = safe_dispatcher.get_count().unwrap();
+   assert(count_after == 1, 'Invalid count');
+
+   let entropy = safe_dispatcher.get().unwrap();
+   assert(entropy == 42, 'Invalid entropy');
 }

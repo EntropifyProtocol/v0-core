@@ -30,9 +30,11 @@ mod FeeCollector {
     impl FeeCollectorImpl of super::IFeeCollector<ContractState> {
         fn collect(ref self: ContractState, sender: ContractAddress, amount: u256) {
             let fee = self.rate.read();
-            assert(fee >= amount, 'INSUFFICIENT_FUNDS');
 
-            self.get_token().transfer_from(sender, get_contract_address(), fee);
+            if fee > 0 {
+                assert(fee >= amount, 'INSUFFICIENT_FUNDS');
+                self.get_token().transfer_from(sender, get_contract_address(), fee);
+            }
         }
 
         fn withdraw(ref self: ContractState) {
