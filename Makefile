@@ -9,8 +9,8 @@ RESERVOIR_CLASS_HASH = 0x04a58899301ab6d93e8c5ada27a3f77e32556ea0e1f50be5b3eada3
 CONTRIBUTOR_HUB_ADDRESS = 0x071d3c3bae12f992dbc3dda582d7f597d6f617bd567c217575cb7be21e51130a
 CONTRIBUTOR_HUB_CLASS_HASH = 0x02323347d434f2546b4dc1966a7bc3c6b72430c22b88ef32ad8e84a71a1dbaab
 
-COLLECTOR_ADDRESS = 0x07d4457560a5f2d0c219d779ec7929f73ee02cfc9ff089f13536519711de4759
-COLLECTOR_CLASS_HASH = 0x012fa6984298362ad815add3cd5eb454f45601ed25635748b68c8c8082924c11
+COLLECTOR_ADDRESS = 0x072032fab9135306fd48b38c3be22532a9b8ae786897329e0cece34ab12db00c
+COLLECTOR_CLASS_HASH = 0x06059d3cadf49aa1728b6ef02bd1ffb946604aa9e4285902b5d9fb2e80aa4ec9
 
 PROVIDER_ADDRESS = 0x06228386dcba7494effd28d088d20b2ad69a1ea67cb3f3d94c736ba981bf4190
 PROVIDER_CLASS_HASH = 0x06c49a3f7d07b3493f9cdd91196ca75a85915878a4845b85947b32fd48414765
@@ -84,6 +84,7 @@ reservoir-set-provider:
 .PHONY: declare-collector
 declare-collector:
 	starkli declare \
+	  --rpc $(RPC_URL) \
 	  --keystore $(KEY_STORE) \
 	  --account $(ACCOUNT) \
 	  --watch ./target/dev/core_v0_Collector.contract_class.json
@@ -91,6 +92,7 @@ declare-collector:
 .PHONY: deploy-collector
 deploy-collector:
 	starkli deploy \
+	  --rpc $(RPC_URL) \
 	  --keystore $(KEY_STORE) \
 	  --account $(ACCOUNT) \
 	  $(COLLECTOR_CLASS_HASH) \

@@ -4,6 +4,7 @@ use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, test_address}
 
 use core_v0::reservoir::{IEntropyReservoirDispatcher, IEntropyReservoirDispatcherTrait};
 use core_v0::reservoir::{IEntropyReservoirSafeDispatcher, IEntropyReservoirSafeDispatcherTrait};
+use core::poseidon::poseidon_hash_span;
 
 fn deploy_contract(name: ByteArray, owner: ContractAddress) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
@@ -23,6 +24,10 @@ fn test_increase_balance() {
     let count_before = dispatcher.get_count();
     assert(count_before == 0, 'Invalid balance');
 
+    let values = [3, 1, 3, 5, 2, 2, 1, 2, 3, 1, 2, 1, 1, 1, 0, 3, 2, 5, 1, 3, 1, 2, 2, 1, 2, 1, 2, 3, 2, 2, 1, 2];
+    let gott = poseidon_hash_span(values.span());
+    println!("POSEIDON {}", gott);
+
     dispatcher.put(42);
 
     let count_after = dispatcher.get_count();
@@ -30,6 +35,8 @@ fn test_increase_balance() {
 
     let entropy = dispatcher.get();
     assert(entropy == 42, 'Invalid entropy');
+
+
 }
 
 #[test]
